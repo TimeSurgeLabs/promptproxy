@@ -174,6 +174,7 @@ func main() {
 
 			conf := openai.DefaultConfig(apiKey)
 			conf.BaseURL = apiUrl
+			conf.HTTPClient.Timeout = 0
 			// create a new openai client with the given url and key
 			client := openai.NewClientWithConfig(conf)
 
@@ -302,6 +303,7 @@ func main() {
 
 			conf := openai.DefaultConfig(apiKey)
 			conf.BaseURL = apiUrl
+			conf.HTTPClient.Timeout = 0
 			// create a new openai client with the given url and key
 			client := openai.NewClientWithConfig(conf)
 

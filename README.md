@@ -20,6 +20,7 @@
 * [ ] Per user AI access control
 * [ ] Per user prompt access control
 * [ ] Proper frontend UI
+* [ ] Streaming Support
 # Setup
 
 ```sh

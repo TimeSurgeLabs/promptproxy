@@ -13,6 +13,13 @@
 * System Prompt, AI API, Model, and API key management via PocketBase Admin UI.
 * Per user API key management.
 * Per user request tracking.
+# Roadmap
+* [ ] Claude API support
+* [ ] Refactor for maintainability
+* [ ] Per user rate limits
+* [ ] Per user AI access control
+* [ ] Per user prompt access control
+* [ ] Proper frontend UI
 # Setup
 
 ```sh

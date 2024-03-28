@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/labstack/echo/v5"
@@ -49,6 +50,19 @@ func BindChatCompletionRoute(app *pocketbase.PocketBase) {
 					return c.JSON(404, map[string]interface{}{
 						"error": "prompt not found",
 					})
+				}
+
+				toolString := promptRecord.GetString("tools")
+				if toolString != "" && len(req.Tools) == 0 {
+					// parse the string into a list of tools
+					var tools []openai.Tool
+					err := json.Unmarshal([]byte(toolString), &tools)
+					if err != nil {
+						return c.JSON(400, map[string]interface{}{
+							"error": "invalid tool format",
+						})
+					}
+					req.Tools = tools
 				}
 
 				systemPrompt = promptRecord.GetString("instructions") + "\n\n"

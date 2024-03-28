@@ -19,6 +19,8 @@ func BindChatCompletionRoute(app *pocketbase.PocketBase) {
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		e.Router.POST("/v1/chat/completions", func(c echo.Context) error {
 			var req openai.ChatCompletionRequest
+			var promptId string
+			var modelId string
 
 			if err := c.Bind(&req); err != nil {
 				return err
@@ -36,6 +38,7 @@ func BindChatCompletionRoute(app *pocketbase.PocketBase) {
 			systemPrompt := ""
 			// if a prompt is present, query from the database
 			if len(parts) == 2 {
+				promptId = parts[1]
 				promptRecord, err := app.Dao().FindRecordById("prompts", parts[1])
 				if err != nil {
 					return err
@@ -50,9 +53,32 @@ func BindChatCompletionRoute(app *pocketbase.PocketBase) {
 
 				systemPrompt = promptRecord.GetString("instructions") + "\n\n"
 				utils.ProcessChatCompletionPrompt(&req, systemPrompt)
+			} else {
+				// get the system prompt from the request
+				for _, message := range req.Messages {
+					if message.Role == "system" {
+						systemPrompt = message.Content
+						break
+					}
+				}
 			}
 
-			modelId := parts[0]
+			var userPrompt string
+			// get the last user message in the messages array
+			for _, message := range req.Messages {
+				if message.Role == "user" {
+					userPrompt = message.Content
+				}
+			}
+
+			// if the user prompt is empty, return an error
+			if userPrompt == "" {
+				return c.JSON(400, map[string]interface{}{
+					"error": "user prompt is required",
+				})
+			}
+
+			modelId = parts[0]
 			// first get the model name
 			// then get the api as the relation "api" from the model
 			modelRecord, err := app.Dao().FindRecordById("models", modelId)
@@ -104,6 +130,12 @@ func BindChatCompletionRoute(app *pocketbase.PocketBase) {
 				})
 			}
 
+			var assistantResponse string
+			// get the last message in the messages array
+			for _, message := range resp.Choices {
+				assistantResponse = message.Message.Content
+			}
+
 			// get the api key from the header
 			apiKey = c.Request().Header.Get("Authorization")
 
@@ -133,11 +165,17 @@ func BindChatCompletionRoute(app *pocketbase.PocketBase) {
 			record := models.NewRecord(collection)
 			record.Set("api", apiId)
 			record.Set("user", userId)
-			if len(parts) == 2 {
-				record.Set("prompt", parts[1])
+			record.Set("model", modelId)
+			if promptId != "" {
+				record.Set("prompt", promptId)
 			}
 			record.Set("input_tokens", resp.Usage.PromptTokens)
 			record.Set("output_tokens", resp.Usage.CompletionTokens)
+			record.Set("input", req)
+			record.Set("output", resp)
+			record.Set("system_prompt", systemPrompt)
+			record.Set("user_prompt", userPrompt)
+			record.Set("assistant_response", assistantResponse)
 
 			if err := app.Dao().SaveRecord(record); err != nil {
 				return err

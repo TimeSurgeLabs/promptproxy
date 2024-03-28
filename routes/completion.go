@@ -33,6 +33,8 @@ func BindCompletionRoute(app *pocketbase.PocketBase) {
 				})
 			}
 
+			userPrompt := req.Prompt
+
 			systemPrompt := ""
 			// if a prompt is present, query from the database
 			if len(parts) == 2 {
@@ -134,15 +136,27 @@ func BindCompletionRoute(app *pocketbase.PocketBase) {
 				return err
 			}
 
+			var assistantResponse string
+			// get the last message in the messages array
+			for _, message := range resp.Choices {
+				assistantResponse = message.Text
+			}
+
 			// add a new record to the requests table
 			record := models.NewRecord(collection)
 			record.Set("api", apiId)
 			record.Set("user", userId)
+			record.Set("model", modelId)
 			if len(parts) == 2 {
 				record.Set("prompt", parts[1])
 			}
 			record.Set("input_tokens", resp.Usage.PromptTokens)
 			record.Set("output_tokens", resp.Usage.CompletionTokens)
+			record.Set("input", req)
+			record.Set("output", resp)
+			record.Set("system_prompt", systemPrompt)
+			record.Set("user_prompt", userPrompt)
+			record.Set("assistant_response", assistantResponse)
 
 			if err := app.Dao().SaveRecord(record); err != nil {
 				return err
